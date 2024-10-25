@@ -1,7 +1,9 @@
+#![allow(async_fn_in_trait)]
+
 pub(crate) mod err;
+pub mod wait;
 
 use core::convert::TryInto;
-use embedded_hal::digital::InputPin;
 use embedded_hal::digital::OutputPin;
 use embedded_hal::spi::Operation;
 use embedded_hal::spi::SpiDevice;
@@ -10,6 +12,8 @@ use err::SpiError;
 use crate::conf::Config;
 use crate::op::*;
 use crate::reg::*;
+use crate::sx::wait::*;
+
 // use err::OutputPinError;
 
 use self::err::{PinError, SxError};
@@ -43,9 +47,9 @@ where
     TPINERR: core::fmt::Debug,
     TSPI: SpiDevice<Error = TSPIERR>,
     TNRST: OutputPin<Error = TPINERR>,
-    TBUSY: InputPin<Error = TPINERR>,
+    TBUSY: AnyWait<Error = TPINERR>,
     TANT: OutputPin<Error = TPINERR>,
-    TDIO1: InputPin<Error = TPINERR>,
+    TDIO1: AnyWait<Error = TPINERR>,
 {
     // Create a new SX126x
     pub fn new(spi: TSPI, pins: Pins<TNRST, TBUSY, TANT, TDIO1>) -> Self {
@@ -60,57 +64,57 @@ where
     }
 
     // Initialize and configure the SX126x using the provided Config
-    pub fn init(&mut self, conf: Config) -> Result<(), SxError<TSPIERR, TPINERR>> {
+    pub async fn init_async(&mut self, conf: Config) -> Result<(), SxError<TSPIERR, TPINERR>> {
         // Reset the sx
         self.reset()?;
-        self.wait_on_busy()?;
+        self.wait_on_busy_async().await?;
 
         // 1. If not in STDBY_RC mode, then go to this mode with the command SetStandby(...)
         self.set_standby(crate::op::StandbyConfig::StbyRc)?;
-        self.wait_on_busy()?;
+        self.wait_on_busy_async().await?;
 
         // 2. Define the protocol (LoRa® or FSK) with the command SetPacketType(...)
         self.set_packet_type(conf.packet_type)?;
-        self.wait_on_busy()?;
+        self.wait_on_busy_async().await?;
 
         // 3. Define the RF frequency with the command SetRfFrequency(...)
         self.set_rf_frequency(conf.rf_freq)?;
-        self.wait_on_busy()?;
+        self.wait_on_busy_async().await?;
 
         if let Some((tcxo_voltage, tcxo_delay)) = conf.tcxo_opts {
             self.set_dio3_as_tcxo_ctrl(tcxo_voltage, tcxo_delay)?;
-            self.wait_on_busy()?;
+            self.wait_on_busy_async().await?;
         }
 
         // Calibrate
         self.calibrate(conf.calib_param)?;
-        self.wait_on_busy()?;
+        self.wait_on_busy_async().await?;
         self.calibrate_image(CalibImageFreq::from_rf_frequency(conf.rf_frequency))?;
-        self.wait_on_busy()?;
+        self.wait_on_busy_async().await?;
 
         // 4. Define the Power Amplifier configuration with the command SetPaConfig(...)
         self.set_pa_config(conf.pa_config)?;
-        self.wait_on_busy()?;
+        self.wait_on_busy_async().await?;
 
         // 5. Define output power and ramping time with the command SetTxParams(...)
         self.set_tx_params(conf.tx_params)?;
-        self.wait_on_busy()?;
+        self.wait_on_busy_async().await?;
 
         // 6. Define where the data payload will be stored with the command SetBufferBaseAddress(...)
         self.set_buffer_base_address(0x00, 0x00)?;
-        self.wait_on_busy()?;
+        self.wait_on_busy_async().await?;
 
         // 7. Send the payload to the data buffer with the command WriteBuffer(...)
         // This is done later in SX126x::write_bytes
 
         // 8. Define the modulation parameter according to the chosen protocol with the command SetModulationParams(...) 1
         self.set_mod_params(conf.mod_params)?;
-        self.wait_on_busy()?;
+        self.wait_on_busy_async().await?;
 
         // 9. Define the frame format to be used with the command SetPacketParams(...) 2
         if let Some(packet_params) = conf.packet_params {
             self.set_packet_params(packet_params)?;
-            self.wait_on_busy()?;
+            self.wait_on_busy_async().await?;
         }
 
         // 10. Configure DIO and IRQ: use the command SetDioIrqParams(...) to select TxDone IRQ and map this IRQ to a DIO (DIO1,
@@ -121,16 +125,20 @@ where
             conf.dio2_irq_mask,
             conf.dio3_irq_mask,
         )?;
-        self.wait_on_busy()?;
+        self.wait_on_busy_async().await?;
         self.set_dio2_as_rf_switch_ctrl(true)?;
-        self.wait_on_busy()?;
+        self.wait_on_busy_async().await?;
 
         // 11. Define Sync Word value: use the command WriteReg(...) to write the value of the register via direct register access
         self.set_sync_word(conf.sync_word)?;
-        self.wait_on_busy()?;
+        self.wait_on_busy_async().await?;
 
         // The rest of the steps are done by the user
         Ok(())
+    }
+
+    pub fn init(&mut self, conf: Config) -> Result<(), SxError<TSPIERR, TPINERR>> {
+        futures_lite::future::block_on(self.init_async(conf))
     }
 
     /// Set the LoRa Sync word
@@ -498,7 +506,7 @@ where
     /// puts the device in TX mode, and waits until the devices
     /// is done sending the data or a timeout occurs.
     /// Please note that this method updates the packet params
-    pub fn write_bytes(
+    pub async fn write_bytes_async(
         &mut self,
         data: &[u8],
         timeout: RxTxTimeout,
@@ -521,13 +529,23 @@ where
         // Set tx mode
         let status = self.set_tx(timeout)?;
         // Wait for busy line to go low
-        self.wait_on_busy().map_err(SxError::Spi)?;
+        self.wait_on_busy_async().await?;
         // Wait on dio1 going high
-        self.wait_on_dio1()?;
+        self.wait_on_dio1_async().await?;
         // Clear IRQ
         self.clear_irq_status(IrqMask::all())?;
         // Write completed!
         Ok(status)
+    }
+
+    pub async fn write_bytes(
+        &mut self,
+        data: &[u8],
+        timeout: RxTxTimeout,
+        preamble_len: u16,
+        crc_type: packet::LoRaCrcType,
+    ) -> Result<Status, SxError<TSPIERR, TPINERR>> {
+        futures_lite::future::block_on(self.write_bytes_async(data, timeout, preamble_len, crc_type))
     }
 
     /// Get Rx buffer status, containing the length of the last received packet
@@ -541,21 +559,24 @@ where
     }
 
     /// Busily wait for the busy pin to go low
-    pub fn wait_on_busy(&mut self) -> Result<(), SpiError<TSPIERR>> {
+    pub async fn wait_on_busy_async(&mut self) -> Result<(), SxError<TSPIERR, TPINERR>> {
         self.spi
             .transaction(&mut [Operation::DelayNs(1000)])
             .map_err(SpiError::Transfer)?;
-        while let Ok(true) = self.busy_pin.is_high() {
-            // NOP
-        }
-        Ok(())
+
+        self.busy_pin.anywait_for_low().await.map_err(|err| SxError::Pin(PinError::Input(err)))
+    }
+
+    pub fn wait_on_busy(&mut self) -> Result<(), SxError<TSPIERR, TPINERR>> {
+        futures_lite::future::block_on(self.wait_on_busy_async())
     }
 
     /// Busily wait for the dio1 pin to go high
-    fn wait_on_dio1(&mut self) -> Result<(), PinError<TPINERR>> {
-        while let Ok(true) = self.dio1_pin.is_low() {
-            // NOP
-        }
-        Ok(())
+    pub async fn wait_on_dio1_async(&mut self) -> Result<(), PinError<TPINERR>> {
+        self.dio1_pin.anywait_for_high().await.map_err(PinError::Input)
+    }
+
+    pub fn wait_on_dio1(&mut self) -> Result<(), PinError<TPINERR>> {
+        futures_lite::future::block_on(self.wait_on_dio1_async())
     }
 }
