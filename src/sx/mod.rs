@@ -4,9 +4,11 @@ pub(crate) mod err;
 pub mod wait;
 
 use core::convert::TryInto;
+use embassy_futures::block_on;
 use embedded_hal::digital::OutputPin;
 use embedded_hal::spi::Operation;
-use embedded_hal::spi::SpiDevice;
+// use embedded_hal::spi::SpiDevice;
+use embedded_hal_async::spi::SpiDevice;
 use err::SpiError;
 
 use crate::conf::Config;
@@ -138,7 +140,7 @@ where
     }
 
     pub fn init(&mut self, conf: Config) -> Result<(), SxError<TSPIERR, TPINERR>> {
-        futures_lite::future::block_on(self.init_async(conf))
+        block_on(self.init_async(conf))
     }
 
     /// Set the LoRa Sync word
@@ -545,7 +547,7 @@ where
         preamble_len: u16,
         crc_type: packet::LoRaCrcType,
     ) -> Result<Status, SxError<TSPIERR, TPINERR>> {
-        futures_lite::future::block_on(self.write_bytes_async(data, timeout, preamble_len, crc_type))
+        block_on(self.write_bytes_async(data, timeout, preamble_len, crc_type))
     }
 
     /// Get Rx buffer status, containing the length of the last received packet
@@ -562,13 +564,13 @@ where
     pub async fn wait_on_busy_async(&mut self) -> Result<(), SxError<TSPIERR, TPINERR>> {
         self.spi
             .transaction(&mut [Operation::DelayNs(1000)])
-            .map_err(SpiError::Transfer)?;
+            .await.map_err(SpiError::Transfer)?;
 
         self.busy_pin.anywait_for_low().await.map_err(|err| SxError::Pin(PinError::Input(err)))
     }
 
     pub fn wait_on_busy(&mut self) -> Result<(), SxError<TSPIERR, TPINERR>> {
-        futures_lite::future::block_on(self.wait_on_busy_async())
+        block_on(self.wait_on_busy_async())
     }
 
     /// Busily wait for the dio1 pin to go high
@@ -577,6 +579,6 @@ where
     }
 
     pub fn wait_on_dio1(&mut self) -> Result<(), PinError<TPINERR>> {
-        futures_lite::future::block_on(self.wait_on_dio1_async())
+        block_on(self.wait_on_dio1_async())
     }
 }

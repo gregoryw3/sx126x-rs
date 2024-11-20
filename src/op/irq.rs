@@ -5,7 +5,7 @@ pub enum IrqMaskBit {
     TxDone = 1 << 0,
     RxDone = 1 << 1,
     PreambleDetected = 1 << 2,
-    SyncwordValid = 1 << 3,
+    SyncWordValid = 1 << 3,
     HeaderValid = 1 << 4,
     HeaderError = 1 << 5,
     CrcErr = 1 << 6,
@@ -77,7 +77,7 @@ impl core::fmt::Debug for IrqStatus {
             self.tx_done(),
             self.rx_done(),
             self.preamble_detected(),
-            self.syncword_valid(),
+            self.sync_word_valid(),
             self.header_valid(),
             self.header_error(),
             self.crc_err(),
@@ -101,8 +101,8 @@ impl IrqStatus {
         (self.inner & IrqMaskBit::PreambleDetected as u16) > 0
     }
 
-    pub fn syncword_valid(self) -> bool {
-        (self.inner & IrqMaskBit::SyncwordValid as u16) > 0
+    pub fn sync_word_valid(self) -> bool {
+        (self.inner & IrqMaskBit::SyncWordValid as u16) > 0
     }
 
     pub fn header_valid(self) -> bool {
