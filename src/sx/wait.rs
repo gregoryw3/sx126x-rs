@@ -1,5 +1,5 @@
-use embedded_hal_async::digital::Wait;
 use embedded_hal::digital::InputPin;
+use embedded_hal_async::digital::Wait;
 
 /*
  * A wrapper allowing both polling and async GPIO implementations
@@ -11,7 +11,7 @@ pub trait AnyWait {
     async fn anywait_for_low(&mut self) -> Result<(), Self::Error>;
 }
 
-impl <T:Wait> AnyWait for T {
+impl<T: Wait> AnyWait for T {
     type Error = T::Error;
 
     async fn anywait_for_high(&mut self) -> Result<(), Self::Error> {
@@ -25,7 +25,7 @@ impl <T:Wait> AnyWait for T {
 
 pub struct PollingInputPin<T: InputPin>(T);
 
-impl <T:InputPin> AnyWait for PollingInputPin<T> {
+impl<T: InputPin> AnyWait for PollingInputPin<T> {
     type Error = T::Error;
 
     async fn anywait_for_high(&mut self) -> Result<(), Self::Error> {
@@ -43,7 +43,7 @@ impl <T:InputPin> AnyWait for PollingInputPin<T> {
     }
 }
 
-impl <T:InputPin> From<T> for PollingInputPin<T> {
+impl<T: InputPin> From<T> for PollingInputPin<T> {
     fn from(value: T) -> Self {
         Self(value)
     }

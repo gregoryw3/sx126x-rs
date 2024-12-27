@@ -107,7 +107,7 @@ mod lora {
             self.coding_rate = coding_rate;
             self
         }
-        
+
         pub fn set_low_dr_opt(mut self, low_dr_opt: bool) -> Self {
             self.low_dr_opt = low_dr_opt;
             self
@@ -128,6 +128,12 @@ mod lora {
                     0x00,
                 ],
             }
+        }
+    }
+
+    impl Default for ModParams {
+        fn default() -> Self {
+            LoraModParams::default().into()
         }
     }
 }

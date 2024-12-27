@@ -125,3 +125,9 @@ mod lora {
         }
     }
 }
+
+impl Default for PacketParams {
+    fn default() -> Self {
+        LoRaPacketParams::default().into()
+    }
+}
