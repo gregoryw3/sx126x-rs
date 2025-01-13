@@ -1,8 +1,27 @@
 #[repr(u8)]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq)]
 pub enum PacketType {
     GFSK = 0x00,
     LoRa = 0x01,
+}
+
+impl core::fmt::Debug for PacketType {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            PacketType::GFSK => write!(f, "GFSK"),
+            PacketType::LoRa => write!(f, "LoRa"),
+        }
+    }
+}
+
+impl From<u8> for PacketType {
+    fn from(b: u8) -> Self {
+        match b {
+            0x00 => PacketType::GFSK,
+            0x01 => PacketType::LoRa,
+            _ => unreachable!(),
+        }
+    }
 }
 
 pub struct PacketParams {
@@ -11,6 +30,12 @@ pub struct PacketParams {
 
 impl From<PacketParams> for [u8; 9] {
     fn from(val: PacketParams) -> Self {
+        val.inner
+    }
+}
+
+impl From<&PacketParams> for [u8; 9] {
+    fn from(val: &PacketParams) -> Self {
         val.inner
     }
 }
@@ -36,6 +61,22 @@ mod lora {
         CrcOff = 0x00,
         /// CRC on
         CrcOn = 0x01,
+    }
+
+    /// Only used in FSK mode
+    #[repr(u8)]
+    #[derive(Copy, Clone)]
+    pub enum LoRaCrcTypeConfig {
+        /// No CRC
+        CrcOff = 0x01,
+        /// CRC computed on 1 byte
+        Crc1Byte = 0x00,
+        /// CRC computed on 2 bytes
+        Crc2Bytes = 0x02,
+        /// CRC computed on 1 byte, inverted
+        Crc1ByteInv = 0x04,
+        /// CRC computed on 2 bytes, inverted
+        Crc2BytesInv = 0x06,
     }
 
     #[repr(u8)]
@@ -86,6 +127,26 @@ mod lora {
         }
     }
 
+    impl From<&LoRaPacketParams> for PacketParams {
+        fn from(val: &LoRaPacketParams) -> Self {
+            let preamble_len = val.preamble_len.to_be_bytes();
+
+            PacketParams {
+                inner: [
+                    preamble_len[0],
+                    preamble_len[1],
+                    val.header_type as u8,
+                    val.payload_len,
+                    val.crc_type as u8,
+                    val.invert_iq as u8,
+                    0x00,
+                    0x00,
+                    0x00,
+                ],
+            }
+        }
+    }
+
     impl Default for LoRaPacketParams {
         fn default() -> Self {
             Self {
@@ -99,6 +160,7 @@ mod lora {
     }
 
     impl LoRaPacketParams {
+        /// Valid from 0x0001 to 0xFFFF
         pub fn set_preamble_len(mut self, preamble_len: u16) -> Self {
             self.preamble_len = preamble_len;
             self

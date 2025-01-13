@@ -74,6 +74,12 @@ impl From<TxParams> for [u8; 2] {
     }
 }
 
+impl From<&TxParams> for [u8; 2] {
+    fn from(val: &TxParams) -> Self {
+        [val.power_dbm as u8, val.ramp_time as u8]
+    }
+}
+
 impl TxParams {
     /// The output power is defined as power in dBm in a range of
     /// - -17 (0xEF) to +14 (0x0E) dBm by step of 1 dB if low power PA is selected
@@ -101,14 +107,22 @@ pub enum DeviceSel {
     SX1261 = 0x01,
 }
 
+#[derive(Clone)]
 pub struct PaConfig {
     pa_duty_cycle: u8,
     hp_max: u8,
     device_sel: DeviceSel,
+    enable_pa_clamp_fix: bool,
 }
 
 impl From<PaConfig> for [u8; 4] {
     fn from(val: PaConfig) -> Self {
+        [val.pa_duty_cycle, val.hp_max, val.device_sel as u8, 0x01]
+    }
+}
+
+impl From<&PaConfig> for [u8; 4] {
+    fn from(val: &PaConfig) -> Self {
         [val.pa_duty_cycle, val.hp_max, val.device_sel as u8, 0x01]
     }
 }
@@ -119,16 +133,19 @@ impl Default for PaConfig {
             pa_duty_cycle: 0x00,
             hp_max: 0x00,
             device_sel: DeviceSel::SX1262,
+            enable_pa_clamp_fix: true,
         }
     }
 }
 
 impl PaConfig {
+    /// Set paDutyCycle, cannot be higher than 0x04
     pub fn set_pa_duty_cycle(mut self, pa_duty_cycle: u8) -> Self {
         self.pa_duty_cycle = pa_duty_cycle;
         self
     }
 
+    /// Set hpMax, valid between 0x00 and 0x07
     pub fn set_hp_max(mut self, hp_max: u8) -> Self {
         self.hp_max = hp_max;
         self
@@ -136,6 +153,11 @@ impl PaConfig {
 
     pub fn set_device_sel(mut self, device_sel: DeviceSel) -> Self {
         self.device_sel = device_sel;
+        self
+    }
+
+    pub fn set_enable_pa_clamp_fix(mut self, enable: bool) -> Self {
+        self.enable_pa_clamp_fix = enable;
         self
     }
 }

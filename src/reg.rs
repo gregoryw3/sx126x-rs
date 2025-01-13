@@ -68,7 +68,8 @@ pub enum Register {
     /// Can be used to get a 32-bit random numer; 4th byte
     RandomNumberGen3 = 0x081C,
     /// Refer to Section 15 of the Data Sheet
-    TxModulaton = 0x0889,
+    // TxModulaton = 0x0889,
+    SensitivityConfig = 0x0889,
     /// Set the gain used in Rx mode:
     /// Rx Power Saving gain: 0x94,
     /// Rx Boosted gain: 0x96
@@ -95,4 +96,10 @@ pub enum Register {
     Dio3OutputVoltageControl = 0x0920,
     /// Used to clear events
     EventMask = 0x0944,
+}
+
+impl From<Register> for u16 {
+    fn from(val: Register) -> Self {
+        val as u16
+    }
 }

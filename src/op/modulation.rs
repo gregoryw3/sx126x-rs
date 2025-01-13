@@ -1,10 +1,32 @@
 pub struct ModParams {
     inner: [u8; 8],
+    // pub lora: LoraModParams,
 }
 
 impl From<ModParams> for [u8; 8] {
     fn from(val: ModParams) -> Self {
         val.inner
+    }
+}
+
+impl From<&ModParams> for [u8; 8] {
+    fn from(val: &ModParams) -> Self {
+        val.inner
+    }
+}
+
+impl ModParams {
+    pub fn get_spread_factor(&self) -> LoRaSpreadFactor {
+        self.inner[0].into()
+    }
+    pub fn get_bandwidth(&self) -> LoRaBandWidth {
+        self.inner[1].into()
+    }
+    pub fn get_coding_rate(&self) -> LoraCodingRate {
+        self.inner[2].into()
+    }
+    pub fn get_low_dr_opt(&self) -> bool {
+        self.inner[3] != 0
     }
 }
 
@@ -41,7 +63,7 @@ mod lora {
         }
     }
 
-    #[derive(Copy, Clone)]
+    #[derive(Copy, Clone, PartialEq)]
     #[repr(u8)]
     pub enum LoRaBandWidth {
         /// 7.81 kHz
@@ -66,6 +88,41 @@ mod lora {
         BW500 = 0x06,
     }
 
+    impl From<u8> for LoRaBandWidth {
+        fn from(value: u8) -> Self {
+            match value {
+                0x00 => Self::BW7,
+                0x08 => Self::BW10,
+                0x01 => Self::BW15,
+                0x09 => Self::BW20,
+                0x02 => Self::BW31,
+                0x0A => Self::BW41,
+                0x03 => Self::BW62,
+                0x04 => Self::BW125,
+                0x05 => Self::BW250,
+                0x06 => Self::BW500,
+                _ => panic!("Invalid LoRa bandwidth"),
+            }
+        }
+    }
+
+    impl LoRaBandWidth {
+        pub fn to_khz(&self) -> f32 {
+            match self {
+                LoRaBandWidth::BW7 => 7.81,
+                LoRaBandWidth::BW10 => 10.42,
+                LoRaBandWidth::BW15 => 15.63,
+                LoRaBandWidth::BW20 => 20.83,
+                LoRaBandWidth::BW31 => 31.25,
+                LoRaBandWidth::BW41 => 41.67,
+                LoRaBandWidth::BW62 => 62.50,
+                LoRaBandWidth::BW125 => 125.0,
+                LoRaBandWidth::BW250 => 250.0,
+                LoRaBandWidth::BW500 => 500.0,
+            }
+        }
+    }
+
     #[derive(Copy, Clone)]
     #[repr(u8)]
     pub enum LoraCodingRate {
@@ -75,12 +132,23 @@ mod lora {
         CR4_8 = 0x04,
     }
 
+    impl From<u8> for LoraCodingRate {
+        fn from(value: u8) -> Self {
+            match value {
+                0x01 => Self::CR4_5,
+                0x02 => Self::CR4_6,
+                0x03 => Self::CR4_7,
+                0x04 => Self::CR4_8,
+                _ => panic!("Invalid LoRa coding rate"),
+            }
+        }
+    }
+
     pub struct LoraModParams {
         spread_factor: LoRaSpreadFactor,
-        bandwidth: LoRaBandWidth,
+        pub(crate) bandwidth: LoRaBandWidth,
         coding_rate: LoraCodingRate,
-        /// LowDataRateOptimize
-        low_dr_opt: bool,
+        low_data_rate_optimize: bool,
     }
 
     impl Default for LoraModParams {
@@ -89,7 +157,7 @@ mod lora {
                 spread_factor: LoRaSpreadFactor::SF7,
                 bandwidth: LoRaBandWidth::BW125,
                 coding_rate: LoraCodingRate::CR4_5,
-                low_dr_opt: false,
+                low_data_rate_optimize: false,
             }
         }
     }
@@ -109,7 +177,7 @@ mod lora {
         }
 
         pub fn set_low_dr_opt(mut self, low_dr_opt: bool) -> Self {
-            self.low_dr_opt = low_dr_opt;
+            self.low_data_rate_optimize = low_dr_opt;
             self
         }
     }
@@ -121,12 +189,13 @@ mod lora {
                     val.spread_factor as u8,
                     val.bandwidth as u8,
                     val.coding_rate as u8,
-                    val.low_dr_opt as u8,
+                    val.low_data_rate_optimize as u8,
                     0x00,
                     0x00,
                     0x00,
                     0x00,
                 ],
+                // lora: val,
             }
         }
     }

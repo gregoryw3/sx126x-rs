@@ -15,7 +15,7 @@ impl core::fmt::Debug for DeviceErrors {
         let pa_ramp_err = self.pa_ramp_err();
         write!(
             f,
-            "DeviceErrors {{inner: {:#016b}, rc64k_calib_err: {}, rc13m_calib_err: {}, pll_calib_err: {}, adc_calib_err: {}, img_calib_err: {}, xosc_start_err: {}, pll_lock_err: {}, pa_ramp_err: {}}}",
+            "DeviceErrors {{\ninner: {:#016b}, \nrc64k_calib_err: {}, \nrc13m_calib_err: {}, \npll_calib_err: {}, \nadc_calib_err: {}, \nimg_calib_err: {}, \nxosc_start_err: {}, \npll_lock_err: {}, \npa_ramp_err: {}}}",
             self.inner,
             rc64k_calib_err,
             rc13m_calib_err,

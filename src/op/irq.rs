@@ -72,7 +72,7 @@ impl core::fmt::Debug for IrqStatus {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(
             f,
-            "IrqStatus {{inner: {:#016b}, tx_done: {}, rx_done: {}, preamble_detected: {}, syncword_valid: {}, header_valid: {}, header_error: {}, crc_err: {}, cad_done: {}, cad_detected: {}, timeout : {}}}",
+            "\nIrqStatus {{\ninner: {:#016b}, \ntx_done: {}, \nrx_done: {}, \npreamble_detected: {}, \nsyncword_valid: {}, \nheader_valid: {}, \nheader_error: {}, \ncrc_err: {}, \ncad_done: {}, \ncad_detected: {}, \ntimeout : {}}}",
             self.inner,
             self.tx_done(),
             self.rx_done(),

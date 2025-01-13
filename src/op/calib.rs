@@ -16,11 +16,6 @@ impl From<u8> for CalibParam {
 }
 
 impl CalibParam {
-    /// Returns a `CalibParam` with all calibration parameters enabled.
-    pub fn default() -> Self {
-        Self::all()
-    }
-
     /// Creates a new `CalibParam` with the specified calibration parameters.
     ///
     /// # Parameters
@@ -73,19 +68,11 @@ impl CalibParam {
         Self { inner }
     }
 
-    /// Returns a `CalibParam` with all calibration parameters enabled.
     pub const fn all() -> Self {
         Self::new(true, true, true, true, true, true, true)
     }
 }
 
-/// | Frequency Band (MHz) | Freq1 | Freq2 |
-/// |----------------------|-------|-------|
-/// | 430 - 440            | 0x6B  | 0x6F  |
-/// | 470 - 510            | 0x75  | 0x81  |
-/// | 779 - 787            | 0xC1  | 0xC5  |
-/// | 863 - 870            | 0xD7  | 0xDB  |
-/// | 902 - 928            | 0xE1 (default) | 0xE9 (default) |
 #[derive(Copy, Clone)]
 #[repr(u16)]
 pub enum CalibImageFreq {
@@ -103,12 +90,8 @@ impl From<CalibImageFreq> for [u8; 2] {
 }
 
 impl CalibImageFreq {
-    pub fn default() -> Self {
-        Self::MHz902_928
-    }
-
-    pub const fn from_rf_frequency(rf_freq: u32) -> Self {
-        match rf_freq / 1000000 {
+    pub fn from_rf_frequency(rf_frequency: u32) -> Self {
+        match rf_frequency / 1000000 {
             902..=928 => Self::MHz902_928,
             863..=870 => Self::MHz863_870,
             779..=787 => Self::MHz779_787,

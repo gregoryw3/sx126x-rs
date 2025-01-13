@@ -1,4 +1,6 @@
 //! Defines the parameters used in every command detailed in chapter 13
+pub mod cad;
+pub mod op_modes;
 pub mod calib;
 pub mod err;
 pub mod init;
@@ -9,6 +11,8 @@ pub mod rxtx;
 pub mod status;
 pub mod tcxo;
 
+pub use cad::*;
+pub use op_modes::*;
 pub use calib::*;
 pub use err::*;
 pub use init::*;
